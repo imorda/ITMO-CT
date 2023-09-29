@@ -1,0 +1,51 @@
+[submodule "Semester-1/Прога/prog-intro"]
+	path = Semester-1/Прога/prog-intro
+	url = https://github.com/imorda/prog-intro-2021-solutions.git
+[submodule "Semester-2/Прога/paradigms"]
+	path = Semester-2/Прога/paradigms
+	url = https://github.com/imorda/paradigms-2022-solutions
+[submodule "Semester-2/C++/cpp/8puzzle-imorda"]
+	path = Semester-2/C++/cpp/8puzzle-imorda
+	url = https://github.com/imorda/8puzzle-imorda
+[submodule "Semester-2/C++/cpp/boe-new-order-cross-imorda"]
+	path = Semester-2/C++/cpp/boe-new-order-cross-imorda
+	url = https://github.com/imorda/boe-new-order-cross-imorda
+[submodule "Semester-2/C++/cpp/bptree-imorda"]
+	path = Semester-2/C++/cpp/bptree-imorda
+	url = https://github.com/imorda/bptree-imorda
+[submodule "Semester-2/C++/cpp/calc-fold-imorda"]
+	path = Semester-2/C++/cpp/calc-fold-imorda
+	url = https://github.com/imorda/calc-fold-imorda
+[submodule "Semester-2/C++/cpp/comm-imorda"]
+	path = Semester-2/C++/cpp/comm-imorda
+	url = https://github.com/imorda/comm-imorda
+[submodule "Semester-2/C++/cpp/expressions-int128-imorda"]
+	path = Semester-2/C++/cpp/expressions-int128-imorda
+	url = https://github.com/imorda/expressions-int128-imorda
+[submodule "Semester-2/C++/cpp/n-body-imorda"]
+	path = Semester-2/C++/cpp/n-body-imorda
+	url = https://github.com/imorda/n-body-imorda
+[submodule "Semester-2/C++/cpp/second-chance-buddy-imorda"]
+	path = Semester-2/C++/cpp/second-chance-buddy-imorda
+	url = https://github.com/imorda/second-chance-buddy-imorda
+[submodule "Semester-2/C++/cpp/trees-splay-imorda"]
+	path = Semester-2/C++/cpp/trees-splay-imorda
+	url = https://github.com/imorda/trees-splay-imorda
+[submodule "Semester-3/rust/homework-1-tic-tac-toe-imorda"]
+	path = Semester-3/rust/homework-1-tic-tac-toe-imorda
+	url = https://github.com/imorda/tic-tac-toe-imorda
+[submodule "Semester-3/rust/homework-2---raytracer-imorda"]
+	path = Semester-3/rust/homework-2---raytracer-imorda
+	url = https://github.com/imorda/raytracer-imorda.git
+[submodule "Semester-3/rust/homework-3---procedural-macro-imorda"]
+	path = Semester-3/rust/homework-3---procedural-macro-imorda
+	url = https://github.com/imorda/procedural-macro-imorda
+[submodule "Semester-4/МетОпт/meth_opt_lab4"]
+	path = Semester-4/МетОпт/meth_opt_lab4
+	url = https://github.com/imorda/meth_lab4
+[submodule "Semester-4/Прога/java-advanced"]
+	path = Semester-4/Прога/java-advanced
+	url = https://github.com/imorda/java-advanced-2023-solutions
+[submodule "Semester-4/МетОпт/meth_opt_lab3"]
+	path = Semester-4/МетОпт/meth_opt_lab3
+	url = https://github.com/chanyshv/meth_opt_lab3.git

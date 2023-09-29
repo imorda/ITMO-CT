@@ -1,0 +1,1967 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0047)http://www.csbio.unc.edu/mcmillan/miniMIPS.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>UNC miniMIPS Architecture Simulator</title>
+<style type="text/css">
+p { font-family: sans-serif; text-align:justify; }
+a { font-family: sans-serif; }
+h2 { font-family: sans-serif; }
+h3 { font-family: sans-serif; text-align: center; }
+dt { font-family: sans-serif; margin: 0px 0px 10px 0px;}
+dd { font-family: sans-serif; margin: 0px 30px 0px 30px;}
+code { font-size: 120%; }
+textarea.editarea { font-family: monospace; font-size: 120%; padding: 5px; margin: 5px; }
+code.assembly { color: blue; font-weight: bold; margin-left: 68px; }
+code.variant { color: blue; font-weight: bold; margin-left: 125px; }
+code.machine { font-weight: bold; margin-left: 50px; }
+code.example { font-weight: bold; margin-left: 52px; }
+.description { margin-left: 125px; margin-right: 50px; text-align:justify; }
+a.register { font-family: monospace; color: blue; text-decoration: none; }
+a.register:hover { font-weight: bold; }
+#regPopup { box-shadow: 4px 4px 8px #808080; }
+input[type=button], input[type=submit] { font-size: small; cursor: pointer; padding: 2px 4px; background-color: #e0f0ff; margin: 2px 1px; box-sizing: initial; border: 1px solid; border-radius: 3px; }
+#OutputArea { display: none; }
+</style>
+<script type="text/javascript">
+//<![CDATA[
+var memPointer;
+var memory;
+var instr;
+var symbol;
+var unresolved;
+var breakpoint;
+var isAssembled;
+
+var opValue = {
+    "j":2, "jal":3, "beq":4, "bne":5,
+    "addi":8, "addiu":9, "slti":10, "sltiu":11,
+    "andi":12, "ori":13, "xori":14, "lui":15,
+    "lw":35, "sw":43,
+    "sll":64, "srl":66, "sra":67, "sllv":68, "srlv":70, "srav":71,
+    "jr":72, "jalr":73,
+    "mul":88, "div":90,
+    "add":96, "addu":97, "sub":98, "subu":99,
+    "and":100, "or":101, "xor":102, "nor":103,
+    "slt":106, "sltu":107,
+    ".word":-1, ".space":-2, ".asciiz":-3, ".text":-4, ".data":-5,
+    ".globl":-6
+};
+
+var opDecode = [
+    "ALU", "Inv", "j", "jal", "beq", "bne", "Inv", "Inv",
+    "addi", "addiu", "slti", "sltiu", "andi", "ori", "xori", "lui",
+    "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv",
+    "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv",
+    "Inv", "Inv", "Inv", "lw", "Inv", "Inv", "Inv", "Inv",
+    "Inv", "Inv", "Inv", "sw", "Inv", "Inv", "Inv", "Inv",
+    "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv",
+    "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv"
+];
+
+var fnDecode = [
+    "sll", "Inv", "srl", "sra", "sllv", "Inv", "srlv", "srav",
+    "jr", "jalr", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv",
+    "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv",
+    "mul", "Inv", "div", "Inv", "Inv", "Inv", "Inv", "Inv",
+    "add", "addu", "sub", "subu", "and", "or", "xor", "nor",
+    "Inv", "Inv", "slt", "sltu", "Inv", "Inv", "Inv", "Inv",
+    "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv",
+    "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv", "Inv"
+];
+
+function toHex(val) {
+    var hexval = '';
+    for (var digit = 0; digit < 8; digit++) {
+        hexval = "0123456789ABCDEF".charAt(val & 15) + hexval;
+        val = val >> 4;
+    }
+    return "0x"+hexval;
+}
+
+function hexDump(valArray) {
+    var hexString = new Array(valArray.length);
+    for (var i = 0; i < valArray.length; i++) {
+        hexString[i] = toHex(valArray[i]);
+    }
+    return hexString;
+}
+
+function toBinStr(valArray){
+	var result = "";
+	for(var i = 0; i < valArray.length; i++){
+		result += valArray[i].toString(2).padStart(32, '0');
+		result += '\n';
+	}
+	
+	return result;
+}
+
+function download(filename, text) {
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+
+    element.style.display = 'none';
+    document.body.appendChild(element);
+
+    element.click();
+
+    document.body.removeChild(element);
+}
+
+function downloadAssembly(){
+	download("instructions.dat", toBinStr(memory))
+}
+
+function trim(buffer, kruft) {
+    kruft = (kruft == null) ? " \n\r\t" : kruft;
+    var begin = 0;
+    var end = buffer.length;
+    while ((begin < end) && (kruft.indexOf(buffer.charAt(begin)) >= 0))
+        begin += 1;
+    while ((end > begin) && (kruft.indexOf(buffer.charAt(end-1)) >= 0))
+        end -= 1;
+    return buffer.substring(begin,end);
+}
+
+function stripComments(line) {
+    var t = line.indexOf('#');
+    var noComment = (t >= 0) ? line.substring(0,t) : line;
+    return trim(noComment);
+}
+
+function addSymbol(label, value) {
+    value = (typeof(value) == 'undefined') ? memPointer : value;
+    symbol[label] = value;
+    var backfill = unresolved[label];
+    if (backfill != null) {
+        // forward referenced labels are resolved here
+        for (var i = 0; i < backfill.length; i++) {
+            t = memory[backfill[i]];
+            op = (t >> 26) & 63;
+            if (op == 0) {          // .word
+                memory[backfill[i]] = 4*value;
+            } else if (op < 4) {    // jumps
+                memory[backfill[i]] += (value & 0x3ffffff);
+            } else if (op < 8) {    // branches
+                offset = (value - (backfill[i] + 1)) & 0xffff;
+                memory[backfill[i]] = (t & 0xffff0000) + offset;
+            } else if (op == 15) {   // lui
+                memory[backfill[i]] += ((4*value) >> 16) & 0xffff;
+            } else if (op < 48) {   // load/store
+                memory[backfill[i]] += (4*value) & 0xffff;
+            }
+        }
+        delete unresolved[label];
+    }
+}
+
+function getSymbol(label) {
+    var val;
+    if (isNaN(label)) {
+        val = symbol[label];
+        if (val == null) {
+            var backfill = unresolved[label];
+            if (backfill == null) {
+                unresolved[label] = new Array();
+            }
+            unresolved[label].push(memPointer);
+            val = 0;
+        } else {
+            val *= 4;
+        }
+    } else {
+        val = parseInt(label);
+    }
+    return (val & 0x3ffffff);
+}
+
+function getRegister(arg) {
+    var regName = {
+            "zero":0, "at": 1, "v0":2, "v1":3,
+            "a0":4, "a1":5, "a2":6, "a3":7,
+            "t0":8, "t1":9, "t2":10, "t3":11,
+            "t4":12, "t5":13, "t6":14, "t7":15,
+            "s0":16, "s1":17, "s2":18, "s3":19,
+            "s4":20, "s5":21, "s6":22, "s7":23,
+            "t8":24, "t9":25, "k0":26, "k1":27,
+            "gp":28, "sp":29, "fp":30, "ra":31
+        };
+    var t = arg.indexOf("$");
+    if (t >= 0) {
+        var reg = arg.substring(t+1,arg.length);
+        if (isNaN(reg)) {
+            t  = (reg in regName) ? regName[reg] : -1;
+        } else {
+            t = parseInt(reg);
+        }
+    }
+    return t;
+}
+
+function getOffset(arg) {
+    var t = arg.indexOf('(');
+    var offset = (t > 0) ? arg.substring(0,t) : (t == 0) ? '0' : arg;
+    return offset;
+}
+
+function getBase(arg) {
+    var t1 = arg.indexOf('(');
+    var t2 = arg.indexOf(')');
+    var reg = ((t1 < 0) || (t2 < 0)) ? "$0" : arg.substring(t1+1,t2);
+    return reg;
+}
+
+function appendRegOp(func, d, s, t) {
+    if ((func < 4) || (func >= 48)) return -1;
+    if ((d < 0) || (d >= 32)) return -2;
+    if ((s < 0) || (s >= 32)) return -3;
+    if ((t < 0) || (t >= 32)) return -4;
+    var inst = s*(1<<21) + t*(1<<16) + d*(1<<11) + func;
+    memory[memPointer] = inst;
+    memPointer += 1;
+    return 1;
+}
+
+function appendShift(shft, d, t, shamt) {
+    if ((shft < 0) || (shft >= 4)) return -1;
+    if ((d < 0) || (d >= 32)) return -2;
+    if ((t < 0) || (t >= 32)) return -4;
+    if ((shamt < 0) || (shamt >= 32)) return -5;
+    var inst = t*(1<<16) + d*(1<<11) + shamt*(1<<6) + shft;
+    memory[memPointer] = inst;
+    memPointer += 1;
+    return 1;
+}
+
+function appendImm16(op, t, s, imm16) {
+    if ((op < 1) || (op >= 64)) return -1;
+    if ((s < 0) || (s >= 32)) return -3;
+    if ((t < 0) || (t >= 32)) return -4;
+    imm16 = imm16 & 0xffff;
+    var inst = op*(1<<26) + s*(1<<21) + t*(1<<16) + imm16;
+    memory[memPointer] = inst;
+    memPointer += 1;
+    return 1;
+}
+
+function appendJump(op, imm26) {
+    var inst = op*(1<<26) + imm26;
+    memory[memPointer] = inst;
+    memPointer += 1;
+    return 1;
+}
+
+function appendWord(data) {
+    memory[memPointer] = data;
+    memPointer += 1;
+    return 1;
+}
+
+function getChar(string, index) {
+    return (index >= string.length) ? 0 : string.charCodeAt(index);
+}
+
+var pseudoOp = {
+    "neg":0, "la":1, "not":2, "sgt":3, "b":4, "move":5, "nop":6, "negu":7,
+    "subiu":8
+};
+
+function psTranslate(opcode, arg) {
+    opIndex = pseudoOp[opcode];
+    switch (opIndex) {
+        case 0:                                // neg
+            newop = opValue["sub"];
+            arg.splice(1, 0, "$0");
+            break;
+        case 1:                                // la
+            base = getBase(arg[1]);
+            offset = getOffset(arg[1]);
+            rt = getRegister(arg[0]);
+            ival = parseInt(offset);
+            fits16 = isNaN(ival) ? false : ((ival >= -32768) && (ival < 65336));
+            if (fits16 == false) {
+                if (base == '$0') {
+                    rval = isNaN(ival) ? getSymbol(offset) : ival;
+                    t = appendImm16(opValue["lui"],rt,0,(rval>>16));  // lui
+                    newop = opValue["ori"];
+                    arg.splice(1, 1, arg[0], offset);
+                } else {
+                    // Eventhough the two calls to getSymbol seem redundant
+                    // they are necessary to assure that unresolved labels
+                    // are backfilled in both the lui and ori instructions
+                    rval = isNaN(ival) ? getSymbol(offset) : ival;
+                    t = appendImm16(opValue["lui"],1,0,(rval>>16));  // lui
+                    rval = isNaN(ival) ? getSymbol(offset) : ival;
+                    t = appendImm16(opValue["ori"],1,1,rval);       // ori
+                    newop = opValue["addu"];
+                    arg.splice(1, 1, "$1", base);
+                }
+            } else {
+                if (ival > 32767) {
+                    if (base == '$0') {
+                        newop = opValue["ori"];
+                        arg.splice(1, 1, "$0", offset);
+                    } else {
+                        t = appendImm16(opValue["ori"],rt,0,ival);   // ori
+                        newop = opValue["addu"];
+                        arg.splice(1, 1, arg[0], base);
+                    }
+                } else {
+                    newop = opValue["addiu"];
+                    arg.splice(1, 1, base, offset);
+                }
+            }
+            break;
+        case 2:                                // not
+            newop = opValue["nor"];
+            arg.splice(1, 0, "$0");
+            break;
+        case 3:                                // sge
+            newop = opValue["slt"];
+            arg.splice(1, 2, arg[2], arg[1]);
+            break;
+        case 4:                                // b
+            newop = opValue["beq"];
+            arg.splice(0, 0, "$0", "$0");
+            break;
+        case 5:                                // move
+            newop = opValue["addi"];
+            arg.splice(2, 0, "0");
+            break;
+        case 6:                                // nop
+            newop = opValue["sll"];
+            arg.splice(0, 0, "$0", "$0", "0");
+            break;
+        case 7:                                // negu
+            newop = opValue["subu"];
+            arg.splice(1, 0, "$0");
+            break;
+        case 8:                                // subiu
+            newop = opValue["addiu"];
+            arg[2] = (arg[2].charAt(0) == '-') ? arg[2].substring(1) : '-' + arg[2];
+            break;
+    }
+    return newop;
+}
+
+function asmToMemory(buffer) {
+    var rd, rs, rt, shamt, imm16;
+    var t = buffer.indexOf(" ");
+    if (t < 0) t = buffer.indexOf("\t");
+    if (t < 0) t = buffer.length;
+    opcode = buffer.substring(0,t).toLowerCase();
+    arg = buffer.substring(t+1,buffer.length).split(",");
+    for (var i = 0; i < arg.length; i++)
+        arg[i] = trim(arg[i]);
+    if (opcode in pseudoOp) {
+        t = psTranslate(opcode, arg);
+    } else if (opcode in opValue) {
+        t = opValue[opcode];
+    } else {
+        return -1;
+    }
+    var s = 0;
+    var wordsGenerated = 0;
+    if (t >= 64) {
+        t = t & 63;
+        if (t < 4) {                                // shift instruction format
+            if (arg.length != 3) return -8;
+            rd = getRegister(arg[0]);
+            rt = getRegister(arg[1]);
+            shamt = parseInt(arg[2]);
+            wordsGenerated = appendShift(t,rd,rt,shamt);
+        } else if (t < 8) {                         // variable shift instructions
+            if (arg.length != 3) return -8;
+            rd = getRegister(arg[0]);
+            rt = getRegister(arg[1]);
+            rs = getRegister(arg[2]);
+            wordsGenerated = appendRegOp(t,rd,rs,rt);
+        } else if (t == 8) {                        // jr instruction
+            if (arg.length != 1) return -8;
+            rs = getRegister(arg[0]);
+            wordsGenerated = appendRegOp(t,0,rs,0);
+        } else if (t == 9) {                        // jalr instruction
+            if (arg.length != 2) return -8;
+            rs = getRegister(arg[0]);
+            rd = (arg.length > 1) ? getRegister(arg[1]) : 31;
+            wordsGenerated = appendRegOp(t,rd,rs,0);
+        } else {                                    // 3-register format
+            if (arg.length != 3) return -8;
+            rd = getRegister(arg[0]);
+            rs = getRegister(arg[1]);
+            rt = getRegister(arg[2]);
+            wordsGenerated = appendRegOp(t,rd,rs,rt);
+        }
+    } else if (t > 0) {
+        if (t < 4) {                                // jumps
+            if (arg.length != 1) return -8;
+            s = getSymbol(arg[0])>>2;
+            wordsGenerated = appendJump(t,s);
+        } else if (t < 8) {                         // branches
+            if (arg.length != 3) return -8;
+            rs = getRegister(arg[0]);
+            rt = getRegister(arg[1]);
+            imm16 = (getSymbol(arg[2])>>2) - (memPointer + 1);
+            wordsGenerated = appendImm16(t,rt,rs,imm16);
+        } else if (t < 15) {                        // immediate format
+            if (arg.length != 3) return -8;
+            rt = getRegister(arg[0]);
+            rs = getRegister(arg[1]);
+            imm16 = (isNaN(arg[2])) ? getSymbol(arg[2]) : parseInt(arg[2]);
+            wordsGenerated = appendImm16(t,rt,rs,imm16);
+        } else if (t == 15) {                       // lui
+            if (arg.length != 2) return -8;
+            rt = getRegister(arg[0]);
+            imm16 = (isNaN(arg[1])) ? (getSymbol(arg[1]) >> 16) : parseInt(arg[1]);
+            wordsGenerated = appendImm16(t,rt,0,imm16);
+        } else {                                    // load/store instructions
+            if (arg.length != 2) return -8;
+            rt = getRegister(arg[0]);
+            rs = getRegister(getBase(arg[1]));
+            imm16 = getOffset(arg[1]);
+            if (isNaN(imm16))
+                imm16 = getSymbol(imm16);
+            wordsGenerated = appendImm16(t,rt,rs,imm16);
+        }
+    } else {
+        // assembler directives
+        if (t == -1) {                              // .word
+            for (var i = 0; i < arg.length; i++) {
+                s = (isNaN(arg[i])) ? getSymbol(arg[i]) : parseInt(arg[i]);
+                wordsGenerated += appendWord(s);
+            }
+        } else if (t == -2) {                       // .space
+            var count = isNaN(arg[0]) ? -2 : parseInt(arg[0]);
+            for (var i = 0; i < count; i++) {
+                wordsGenerated += appendWord(0);
+            }
+        } else if (t == -3) {                       // .asciiz
+            for (var i = 0; i < arg.length; i++) {
+                strval = trim(arg[i], '"');
+                for (var j = 0; j <= strval.length; j += 4) {
+                    s = getChar(strval,j);
+                    s = s*256 + getChar(strval,j+1);
+                    s = s*256 + getChar(strval,j+2);
+                    s = s*256 + getChar(strval,j+3);
+                    wordsGenerated += appendWord(s);
+                }
+            }
+        }
+    }
+    return wordsGenerated;
+}
+
+function assemble() {
+    var buffer, label;
+    memPointer = 0;
+    delete memory, symbol, unresolved, instr;
+    memory = new Array();
+    symbol = new Object();
+    unresolved = new Object();
+    instr = new Object();
+    breakpoint = new Array();
+    isAssembled = false;
+    var textarea = document.getElementById('AssemblerInput');
+    textarea.setAttribute("style", "background-color:#fff0f0");
+
+    var text = textarea.value;
+    var line = text.split("\n");
+    for (var i = 0; i < line.length; i++) {
+        buffer = line[i];
+        if (buffer.charAt(0) == '*') {
+            breakpoint.push(4*memPointer);
+            buffer = buffer.substring(1,buffer.length);
+        }
+        buffer = stripComments(buffer);
+        label ="";
+        var t = buffer.indexOf(":");
+        if (t > 0) {
+            label = trim(buffer.substring(0,t));
+            addSymbol(label);
+            buffer = trim(buffer.substring(t+1,buffer.length));
+        }
+        if (buffer.length == 0)
+            continue;
+        memBefore = memPointer;
+        count = asmToMemory(buffer);
+        if (count < 0) {
+            errmsg = "Error in line " + (i + 1);
+            errmsg += ":\n    [" + buffer + "]\n";
+            if (count == -1)
+                errmsg += "Unknown or Invalid opcode";
+            else if (count == -2)
+                errmsg += "Invalid 1st operand";
+            else if (count == -3)
+                errmsg += "Invalid 2nd operand";
+            else if (count == -4)
+                errmsg += "Invalid 3rd operand";
+            else if (count == -5)
+                errmsg += "Invalid shift amount";
+            else if (count == -8)
+                errmsg += "Invalid number of operands";
+            else if (count == -9)
+                errmsg += "Invalid immediate operand";
+            alert(errmsg);
+            break;
+        } else {
+            for (var j = 0; j < count; j++) {
+                instr[toHex(4*(memBefore+j))] = (label.length > 0) ? label + ": " + buffer : buffer;
+            }
+        }
+    }
+    if (count >= 0) {
+        expstr = ''
+        for (label in symbol) {
+            expstr += label + '=' + (4*symbol[label]) +";"
+        }
+        errmsg = '';
+        for (key in unresolved) {
+            // Evaluate Expressions
+            expfun = expstr + "return " + key;
+            try {
+                expval = Function(expfun).call();
+            } catch(e) {
+                expval = undefined;
+            }
+            if (expval == undefined) {
+                errmsg += expfun + " = " + expval + "\n";
+                addr = toHex(4*unresolved[key])
+                errmsg += 'Error unresolved symbol: "' + key
+                errmsg += '" at location ' + addr + '\n';
+                errmsg += "[ " + instr[addr] + " ]\n\n";
+            } else {
+                addSymbol(key, expval/4);
+            }
+        }
+        if (errmsg.length > 0) {
+            alert(errmsg);
+        }
+        document.getElementById('AssemblerInput').setAttribute("style", "background-color:#f0fff0");
+        var status ="Assembly completed with no errors.\n" + memory.length + " locations initialized.";
+        if (breakpoint.length > 0) {
+            status += "\n\nBreakpoints at ["
+            for (var i = 0; i < breakpoint.length; i++) {
+                if (i > 0) status += ", ";
+                status += toHex(breakpoint[i]);
+            }
+            status += "].\n"
+        }
+        document.getElementById('AssemblerInput').setAttribute("style", "background-color:#ffffff");
+        resetSimulator();
+        alert(status);
+        isAssembled = true;
+    }
+    return true;
+}
+
+var register = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+var programCounter;
+var instrCount;
+var refCount;
+var addrwin;
+var trace;
+
+function breakpointIndex(addr) {
+    addr &= 0x1fffffff;
+    for (var i = 0; i < breakpoint.length; i++) {
+        if (breakpoint[i] > addr) break;
+        if (breakpoint[i] == addr) return i;
+    }
+    return -1;
+}
+
+function singleStep() {
+    var op, rd, rs, rt, func, imm16, shamt;
+    var idecode, ea, nextPC;
+    if (isAssembled == false) {
+        alert("Program must assemble without errors\nbefore it can be simulated.");
+        return false;
+    }
+    trace.push(programCounter);
+    idecode = memory[(programCounter>>2) & 0x1fffffff];
+    refCount += 1;
+    instrCount += 1;
+    nextPC = programCounter + 4;
+    op = (idecode >> 26) & 63;
+    if (op == 0) {
+        func = idecode & 63;
+        rd = (idecode >> 11) & 31;
+        rt = (idecode >> 16) & 31;
+        rs = (idecode >> 21) & 31;
+        shamt = (idecode >> 6) & 31;
+        switch (func) {
+            case 0:         // sll rd, rt, shamt
+                register[rd] = register[rt] << shamt;
+                break;
+            case 2:         // srl rd, rt, shamt
+                register[rd] = register[rt] >>> shamt;
+                break;
+            case 3:         // sra rd, rt, shamt
+                register[rd] = register[rt] >> shamt;
+                break;
+            case 4:         // sllv rd, rt, rs
+                register[rd] = register[rt] << (register[rs] & 31);
+                break;
+            case 6:         // srlv rd, rt, rs
+                register[rd] = register[rt] >>> (register[rs] & 31);
+                break;
+            case 7:         // srav rd, rt, rs
+                register[rd] = register[rt] >> (register[rs] & 31);
+                break;
+            case 8:         // jr rs
+                nextPC = register[rs];
+                break;
+            case 9:         // jalr rs, rd
+                register[rd] = nextPC;
+                nextPC = register[rs];
+                break;
+            case 24:        // mul rd, rt, rs
+                register[rd] = (register[rs] * register[rt]) & 0xffffffff;
+                break;
+            case 26:        // div rd, rt, rs
+                t = register[rt];
+                if (t == 0) {
+                    alert("Overflow: Divide by zero");
+                    register[27] = programCounter;
+                    nextPC = 0x80000400;
+                } else {
+                    register[rd] = Math.floor(register[rs] / t);
+                }
+                break;
+            case 32:        // add rd,rs,rt
+                s = register[rs];
+                t = register[rt];
+                d = (s + t) & 0xffffffff;
+                register[rd] = d;
+                if (((s >= 0) && (t >= 0) && (d < 0)) || ((s < 0) && (t < 0) && (d >= 0))) {
+                    alert("Integer overflow on ADD");
+                    register[27] = programCounter;
+                    nextPC = 0x80000400;
+                }
+                break;
+            case 33:        // addu rd,rs,rt
+                register[rd] = register[rs] + register[rt];
+                break;
+            case 34:        // sub rd,rs,rt
+                s = register[rs];
+                t = -register[rt];
+                d = (s + t) & 0xffffffff;
+                register[rd] = d;
+                if (((s >= 0) && (t >= 0) && (d < 0)) || ((s < 0) && (t < 0) && (d >= 0))) {
+                    alert("Integer overflow on SUB");
+                    register[27] = programCounter;
+                    nextPC = 0x80000400;
+                }
+                break;
+            case 35:        // subu rd,rs,rt
+                register[rd] = register[rs] - register[rt];
+                break;
+            case 36:        // and rd,rs,rt
+                register[rd] = register[rs] & register[rt];
+                break;
+            case 37:        // or rd,rs,rt
+                register[rd] = register[rs] | register[rt];
+                break;
+            case 38:        // xor rd,rs,rt
+                register[rd] = register[rs] ^ register[rt];
+                break;
+            case 39:        // nor rd,rs,rt
+                register[rd] = ~(register[rs] | register[rt]);
+                break;
+            case 42:        // slt rd,rs,rt
+                register[rd] =  (register[rs] < register[rt]) ? 1 : 0;
+                break;
+            case 43:        // sltu rd,rs,rt
+                s = register[rs];
+                t = register[rt];
+                register[rd] = ((s^t) < 0) ? (imm16>>>31) : ((s < t) ? 1 : 0);
+                break;
+            default:
+                error = "Invalid Instruction (" + toHex(idecode);
+                error += ") at pc = " + toHex(programCounter);
+                error += "\npc will be saved in $k1";
+                alert(error);
+                register[27] = programCounter;
+                nextPC = 0x80000400;
+                break;
+        }
+    } else {
+        rt = (idecode >> 16) & 31;
+        rs = (idecode >> 21) & 31;
+        imm16 = idecode & 0xffff;
+        if (((op & 60) != 12) && (imm16 >= 32768)) imm16 -= 65536;
+        switch (op) {
+            case 2:         // j target
+                nextPC = (nextPC & 0xf0000000) + 4*(idecode & 0x03ffffff);
+                break;
+            case 3:         // jal target
+                register[31] = nextPC;
+                nextPC = (nextPC & 0xf0000000) + 4*(idecode & 0x03ffffff);
+                break;
+            case 4:         // beq rs, rt, offset
+                if (register[rs] == register[rt])
+                    nextPC = programCounter + 4 + 4*imm16;
+                break;
+            case 5:         // bne rs, rt, offset
+                if (register[rs] != register[rt])
+                    nextPC = programCounter + 4 + 4*imm16;
+                break;
+            case 8:         // addi rt, rs, imm16
+                s = register[rs];
+                d = (s + imm16) & 0xffffffff;
+                register[rt] = d;
+                if (((s >= 0) && (imm16 >= 0) && (d < 0)) || ((s < 0) && (imm16 < 0) && (d >= 0))) {
+                    alert("Integer overflow on ADDI");
+                    register[27] = programCounter;
+                    nextPC = 0x80000400;
+                }
+                break;
+            case 9:         // addiu rt, rs, imm16
+                register[rt] = register[rs] + imm16;
+                break;
+            case 10:        // slti rt, rs, imm16
+                register[rt] = (register[rs] < imm16) ? 1 : 0;
+                break;
+            case 11:        // sltiu rt, rs, imm16
+                s = register[rs];
+                register[rt] = ((s^imm16) < 0) ? (imm16>>>31) : ((s < imm16) ? 1 : 0);
+                break;
+            case 12:        // andi rt, rs, imm16
+                register[rt] = register[rs] & imm16;
+                break;
+            case 13:        // ori rt, rs, imm16
+                register[rt] = register[rs] | imm16;
+                break;
+            case 14:        // xori rt, rs, imm16
+                register[rt] = register[rs] ^ imm16;
+                break;
+            case 15:        // lui rt, imm16
+                register[rt] = imm16 << 16;
+                break;
+            case 35:        // lw rt, imm16(rs)
+                ea = (register[rs] + imm16) & 0x7fffffff;
+                // verify address is word aligned
+                if ((ea & 3) == 0) {
+                    trace.push(ea);
+                    register[rt] = memory[ea>>>2];
+                    refCount += 1;
+                } else {
+                    error = "Alignment exception: pc = " + toHex(programCounter);
+                    error += "\nlw effective address =" + toHex(ea);
+                    error += "\n$s = " + toHex(register[rs]);
+                    error += ", imm16 =" + toHex(imm16);
+                    error += "\npc will be saved in $k1";
+                    alert(error);
+                    register[27] = programCounter;
+                    nextPC = 0x80000400;
+                }
+                break;
+            case 43:        // sw rt, imm16(rs)
+                ea = (register[rs] + imm16) & 0x7fffffff;
+                // verify address is word aligned
+                if ((ea & 3) == 0) {
+                    trace.push(ea);
+                    memory[ea>>>2] = register[rt];
+                    refCount += 1;
+                } else {
+                    error = "Alignment exception: pc = " + toHex(programCounter);
+                    error += "\nsw effective address =" + toHex(ea);
+                    error += "\n$s = " + toHex(register[rs]);
+                    error += ", imm16 =" + toHex(imm16);
+                    error += "\npc will be saved in $k1";
+                    alert(error);
+                    register[27] = programCounter;
+                    nextPC = 0x80000400;
+                }
+                break;
+            default:
+                error = "Invalid instruction (" + toHex(idecode);
+                error += ") at pc = " + toHex(programCounter);
+                error += "\npc will be saved in $k1";
+                alert(error);
+                register[27] = programCounter;
+                nextPC = 0x80000400;
+                break;
+        }
+    }
+    register[0] = 0;
+    prevPC = programCounter;
+    programCounter = nextPC;
+    updateSimulator();
+    if ((op == 43) && (breakpointIndex(ea) >= 0)) {
+        mess = "Access breakpoint at location: " + toHex(ea);
+        mess += "\n$pc = " + toHex(prevPC);
+        contents = memory[ea>>2];
+        mess += "\ncontents = " + toHex(contents);
+        mess += " [" + contents + "]";
+        alert(mess);
+        return false;
+    }
+    if (breakpointIndex(programCounter) >= 0) {
+        alert("Reached breakpoint at " + toHex(programCounter));
+        return false;
+    }
+    return true;
+}
+
+function multiStep() {
+    var steps = document.getElementById("MultistepValue").value;
+    for (var i = 0; i < steps; i++) {
+        if (singleStep() == false)
+            break;
+    }
+}
+
+function runToBreakpoint() {
+    if ((breakpoint == null) || (breakpoint.length == 0)) {
+        alert("No breakpoints set.")
+    } else {
+        var step
+        while (singleStep()) {
+            step += 1;
+        }
+    }
+}
+
+function resetSimulator() {
+    programCounter = 1<<31;
+    instrCount = 0;
+    refCount = 0;
+    delete trace;
+    trace = new Array();
+    var textarea = document.getElementById("OutputArea");
+    textarea.innerHTML = "";
+    textarea.setAttribute("style", "display: none;");
+    delete addrwin;
+    addrwin = new Array(-1,-1,-1,-1,-1,-1,-1);
+    if (document.getElementById("status")) {
+        updateSimulator();
+    }
+}
+
+function disassemble(addr) {
+    var t = memory[addr];
+    var op = (t >> 26) & 63;
+    var opStr = opDecode[op]
+    var rd, rs, rt, imm
+    if (op == 0) {          // ALU ops
+        fn = t & 63
+        opStr = fnDecode[fn];
+        if (opStr != 'Inv') {
+            rd = (t >> 11) & 31;
+            rt = (t >> 16) & 31;
+            rs = (t >> 21) & 31;
+            if (fn < 4) {           // shifts with immediate operands
+                var shamt = (t >> 6) & 31
+                opStr += " $" + rd + ",$" + rt + "," + shamt;
+            } else if (fn < 8) {    // shifts with variable operands
+                opStr += " $" + rd + ",$" + rt + ",$" + rs;
+            } else if (fn < 9) {    // jump register
+                opStr += " $" + rs + ",$" + rd;
+            } else if (fn < 10) {   // jump and link register
+                opStr += " $" + rs;
+            } else {
+                rs = (t >> 21) & 31;
+                opStr += " $" + rd + ",$" + rs + ",$" + rt;
+            }
+        } else {
+            opStr = "Invalid ALU op = " + op;
+        }
+    } else if (opStr != 'Inv') {
+        rt = (t >> 16) & 31;
+        rs = (t >> 21) & 31;
+        if (op < 4) {               // jumps
+            imm = 4*(t & 0x03ffffff);
+            opStr += "   " + imm;
+        } else {
+            imm = t & 0xffff;
+            if ((op & 12 != 12) && (t & 0x8000)) {  // treat non-logic as signed
+                imm -= 65536;
+            }
+            if (op & 32) {          // loads and stores
+                opStr += " $" + rt + "," + imm + "($" + rs + ")";
+            } else if (op == 15) {  // lui
+                opStr += " $" + rt + "," + imm;
+            } else {
+                opStr += " $" + rt + ",$" + rs + "," + imm;
+            }
+        }
+    } else {
+        opStr = "Invalid op = " + op;
+    }
+    return opStr;
+}
+
+var standardRegisterName = [
+    "zero", "at", "v0", "v1", "a0", "a1", "a2", "a3",
+    "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
+    "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+    "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra" ];
+
+function formatReg(i) {
+    var regName, t;
+    if (i == 'pc') {
+        regName = "$pc";
+        t = programCounter;
+        if (t < 0) {
+            regName = '[K]' + regName;
+            t = t & 0xffffffff;
+        }
+    } else {
+        t = register[i] & 0xffffffff;
+        regName = "$" + ((i >= 28) ? standardRegisterName[i] : i);
+    }
+    return regName + ': [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">'
+                   + toHex(t) + "</a>]";
+}
+
+function regPopup(event) {
+    var popup = document.getElementById("regPopup");
+    if (event.target.nodeName == 'A') {
+        var docX, docY;
+        if (event.pageX == null) {
+            // IE case
+            var d = (document.documentElement &&
+                    document.documentElement.scrollLeft != null) ?
+                    document.documentElement : document.body;
+            docX = event.clientX + d.scrollLeft;
+            docY = event.clientY + d.scrollTop;
+        } else {
+            // all other browsers
+            docX = event.pageX;
+            docY = event.pageY;
+        }
+        popup.style.top = (docY + 20) + 'px';
+        popup.style.left = (docX - 80) + 'px';
+
+        var decimalValue = parseInt(event.target.innerHTML);
+        var regName = event.target.offsetParent.id;
+        if (regName.indexOf("reg") == 0) {
+            regName = "$" + parseInt(regName.substr(3)) + " [$" + standardRegisterName[parseInt(regName.substr(3))] + "]";
+        }
+        signedValue = (decimalValue & 0x80000000) ? decimalValue - (2*0x80000000) : decimalValue;
+        popup.innerHTML = "&nbsp;&nbsp;&nbsp;register: " + regName
+                        + "<br>hexadecimal: " + event.target.innerHTML
+                        + "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;signed: " + signedValue
+                        + "<br>&nbsp;&nbsp;&nbsp;unsigned: " + decimalValue;
+        popup.style.display = "block";
+    }
+}
+
+function removePopup(event) {
+    document.getElementById("regPopup").style.display = "none";
+}
+
+function updateSimulator() {
+    var status = "Registers";
+    if (instrCount > 0) status += ",   Instruction Count = " + instrCount;
+    if (refCount > 0) status += ",   Memory References = " + refCount;
+    document.getElementById("status").innerHTML = status;
+
+    // update register display
+    document.getElementById("pc").innerHTML = formatReg('pc');
+    for (n = 0; n < 32; n++)
+        document.getElementById("reg"+n).innerHTML = formatReg(n);
+
+    pc = programCounter >>> 2;
+    addrwin[0] = addrwin[1];
+    addrwin[1] = addrwin[2];
+    addrwin[2] = addrwin[3];
+    addrwin[3] = pc;
+    addrwin[4] = pc+1;
+    addrwin[5] = pc+2;
+    addrwin[6] = pc+3;
+
+    <!-- update instruction display -->
+    for (n = 0; n < 7; n++) {
+        if (addrwin[n] >= 0) {
+            memAddr = toHex(4*addrwin[n]);
+            memIndex = addrwin[n] & 0x1fffffff;
+            document.getElementById("addr"+n).innerHTML = (breakpointIndex(4*addrwin[n]) >= 0) ? '*'+memAddr+'*': memAddr;
+            document.getElementById("cont"+n).innerHTML = toHex(memory[memIndex]);
+            t = toHex(4*memIndex);
+            if (t in instr) {
+                code = instr[t];
+                if ((code.indexOf('.word') >= 0) || (code.indexOf('.space') >= 0) || (code.indexOf('.asciiz') >= 0)) {
+                    code += " # [" + disassemble(memIndex) + "]";
+                }
+            } else {
+                code = "[" + disassemble(memIndex) + "]";
+            }
+            document.getElementById("inst"+n).innerHTML = code;
+        } else {
+            document.getElementById("addr"+n).innerHTML = "";
+            document.getElementById("cont"+n).innerHTML = "";
+            document.getElementById("inst"+n).innerHTML = "";
+        }
+    }
+}
+
+function createSimulator() {
+    isAssembled = false;
+    document.getElementById('AssemblerInput').setAttribute("style", "background-color:#fff0f0");
+
+    popup = document.createElement('div');
+    popup.id = "regPopup";
+    popup.style.display = "none";
+    popup.style.position = "absolute";
+    popup.style.padding = "5px";
+    popup.style.background = "#ffffcc";
+    popup.style.fontFamily = "monospace";
+    popup.style.fontSize = "80%";
+    popup.style.border = "1px solid black";
+    popup.style.zIndex = "200000";
+    popup.onmouseover = removePopup;
+    document.body.appendChild(popup);
+
+    <!-- generate register header -->
+    var table = document.getElementById("SimulatorState");
+    var tRow = table.insertRow(-1);
+    tRow.bgColor = "#FFFFFF";
+    tRow.onmouseout = removePopup;
+    var cell = tRow.insertCell(-1);
+    cell.id = "status";
+    cell.align = "center";
+    cell.colSpan =  "3";
+    cell.height = "22px";
+    cell.innerHTML = "Registers";
+
+    cell = tRow.insertCell(-1);
+    cell.id = "pc";
+    cell.align = "right";
+    cell.colSpan = "1";
+    cell.height = "22px";
+    cell.style.fontFamily = "monospace";
+    cell.style.fontSize = "14px";
+    cell.innerHTML = formatReg('pc');
+
+    <!-- generate register cells -->
+    var n = 0;
+    for (var j = 0; j < 8; j++) {
+        tRow = table.insertRow(-1);
+        tRow.onmouseout = removePopup;
+        tRow.setAttribute("bgColor", "#FFFFFF");
+        for (var i = 0; i < 4; i++) {
+            cell = tRow.insertCell(-1);
+            cell.id = "reg"+n;
+            cell.align = "right";
+            cell.height = "22px";
+            cell.width = "25%";
+            cell.style.fontFamily = "monospace";
+            cell.style.fontSize = "14px";
+            cell.innerHTML = formatReg(n);
+            n += 1
+        }
+    }
+
+    tRow = table.insertRow(-1);
+    cell = tRow.insertCell(-1);
+    cell.setAttribute("colSpan", "4");
+
+    <!-- generate code header -->
+    tRow = table.insertRow(-1);
+    tRow.setAttribute("bgColor", "#FFFFFF");
+
+    cell = tRow.insertCell(-1);
+    cell.setAttribute("align", "center");
+    cell.setAttribute("height", "20px");
+    cell.innerHTML = "Address";
+
+    cell = tRow.insertCell(-1);
+    cell.setAttribute("align", "center");
+    cell.innerHTML = "Contents";
+
+    cell = tRow.insertCell(-1);
+    cell.setAttribute("align", "center");
+    cell.setAttribute("colSpan", "2");
+    cell.innerHTML = "Instruction";
+
+    <!-- generate code cells -->
+    for (var j = 0; j < 7; j++) {
+        tRow = table.insertRow(-1);
+        tRow.setAttribute("bgColor", (j == 3) ? "#AAFFAA":"#FFFFFF");
+
+        cell = tRow.insertCell(-1);
+        cell.setAttribute("align", "center");
+        cell.setAttribute("height", "20px");
+        cell.setAttribute("style", "font-family: monospace; font-size: 14px");
+        cell.setAttribute("id", "addr"+j);
+        cell.innerHTML = " ";
+
+        cell = tRow.insertCell(-1);
+        cell.setAttribute("align", "left");
+        cell.setAttribute("style", "font-family: monospace; font-size: 14px");
+        cell.setAttribute("id","cont"+j);
+        cell.innerHTML = " ";
+
+        cell = tRow.insertCell(-1);
+        cell.setAttribute("align", "left");
+        cell.setAttribute("colSpan", "2");
+        cell.setAttribute("style", "font-family: monospace; font-size: 14px");
+        cell.setAttribute("id","inst"+j);
+        cell.innerHTML = " ";
+    }
+    resetSimulator();
+}
+
+function outputTrace() {
+    if (trace.length <= 0) {
+        alert("Error: Code must first run in order to output memory address trace")
+        return;
+    }
+    var textarea = document.getElementById('OutputArea');
+    response = '';
+    for (var i = 0; i < trace.length; i++) {
+        response += toHex(trace[i]) + '\n'
+    }
+    textarea.innerHTML = response;
+    textarea.setAttribute("style", "display: block;");
+}
+
+function memDump() {
+    if (isAssembled == false) {
+        alert("Error: Code must first be assembled in order to dump memory")
+        return;
+    }
+    var dumpAddr = document.getElementById('MemDumpStart').value;
+    var response = "\t\tMemory Dump: " +  dumpAddr;
+    var start = parseInt(dumpAddr);
+    if (isNaN(start)) {
+        start = symbol[dumpAddr];
+        if (start == null) {
+            expstr = ''
+            for (label in symbol) {
+                if (dumpAddr.indexOf(label) < 0)
+                    continue;
+                expstr += label + '$ =' + (4*symbol[label]) +";";
+                dumpAddr = dumpAddr.replace(label, label+'$')
+            }
+            // Evaluate Expressions
+            expstr = expstr + "return " + dumpAddr;
+            try {
+                start = Function(expstr).call();
+            } catch (e) {
+                start = NaN
+            }
+        } else {
+            start = 4*start;
+        }
+    }
+    response += " = "+ start + "\n";
+    start = 4*Math.floor(start/4);
+    var end = start + 64;
+    response += "\n Address\t\t:\t Contents\t";
+    while (start < end) {
+        var contents = memory[start/4];
+        if (contents == null) contents = 0;
+        var signedValue = (contents & 0x80000000) ? contents - (2*0x80000000) : contents;
+        response += "\n" + toHex(start) + "\t:\t" + toHex(contents);
+        response += "\t" + signedValue;
+        start += 4;
+    }
+    alert(response);
+}
+
+function asmChange() {
+    var textarea = document.getElementById('AssemblerInput');
+    textarea.setAttribute("style", "background-color:#fff0f0");
+    isAssembled = false;
+}
+
+var tabstops = 8;
+
+function handleTabs(evt) {
+    if (evt.keyCode == 9) {
+        // Tab key - insert tab expansion
+        evt.preventDefault();
+        var t = evt.target;
+        var ss = t.selectionStart;
+        var se = t.selectionEnd;
+        for (var i = ss - 1; i >= 0; i--) {
+            if (t.value.charAt(i) == '\n')
+                break;
+        }
+        ns = tabstops - ((ss - i - 1) % tabstops);
+        var tab = '';
+        for (i = 0; i < ns; i++) {
+            tab += ' ';
+        }
+        if (ss != se && t.value.slice(ss,se).indexOf("\n") != -1) {
+            // Multi-line selection
+            var pre = t.value.slice(0,ss);
+            var sel = t.value.slice(ss,se).replace("\n","\n"+tab);
+            var post = t.value.slice(se,t.value.length);
+            t.value = pre.concat(tab).concat(sel).concat(post);
+            t.selectionStart = ss + tab.length;
+            t.selectionEnd = se + tab.length;
+        } else {
+            // "Typical" case (no selection or selection on one line only)
+            t.value = t.value.slice(0,ss).concat(tab).concat(t.value.slice(ss,t.value.length));
+            if (ss == se) {
+                t.selectionStart = t.selectionEnd = ss + tab.length;
+            }
+            else {
+                t.selectionStart = ss + tab.length;
+                t.selectionEnd = se + tab.length;
+            }
+        }
+    }
+}
+//]]>
+</script>
+</head>
+<body topmargin="10" leftmargin="10" bgcolor="#cccccc" onload="createSimulator()">
+<table align="center" bgcolor="#FFFFFF" width="900">
+    <tbody><tr><td colspan="3"><br>
+    <form action="http://www.csbio.unc.edu/mcmillan/index.py" method="POST" enctype="multipart/form-data">
+    <table align="center" border="2" cellspacing="2px" bgcolor="#99BADD" width="760" id="SimulatorState">
+    <tbody><tr>
+        <td colspan="8" align="center">
+        <br>
+        <h2>UNC miniMIPS Architecture Simulator V 1.1</h2>
+        <textarea rows="30" cols="76" id="AssemblerInput" onkeydown="handleTabs(event);" onchange="asmChange();" class="editarea" style="background-color:#ffffff">#   compute the integer squareroot
+#   of the positive value in $a0
+
+main:   lui     $sp,0x7fff
+        ori     $sp,$sp,0xfffc
+        addiu   $a0,$0,144
+        jal     sqrt
+*done:  beq     $0,$0,done
+
+array:  .asciiz "abcdef"
+
+sqrt:   add     $t0,$0,$0       # zero result
+        addi    $t1,$0,1        # $t1 = successive odd integers
+loop:   slt     $t2,$a0,$t1     # value &gt; next odd?
+        bne     $0,$t2,return
+        subu    $a0,$a0,$t1
+        addi    $t0,$t0,1       # increment result
+        addi    $t1,$t1,2       # next odd
+        beq     $0,$0,loop
+return: add     $v0,$t0,$0      # move result
+        jr      $ra             # return
+        </textarea>
+        <textarea rows="10" cols="76" id="OutputArea" class="editarea" disabled="" style="display: none;"></textarea>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" colspan="8">
+        <input type="button" value="Assemble" id="AssembleButton" onclick="assemble()">
+        <input type="button" value="Download assembly" id="DownloadButton" onclick="downloadAssembly()">
+        <input type="button" value="Reset" id="ResetButton" onclick="resetSimulator()">
+        <input type="button" value="Step" id="StepButton" onclick="singleStep()">
+        <input type="button" value="Multistep" id="MultistepButton" onclick="multiStep()">
+        <input type="text" size="5" value="10" id="MultistepValue">
+        <input type="button" value="Run" id="RunButton" onclick="runToBreakpoint()">
+        <input type="button" value="Memory Dump" id="MemDumpButton" onclick="memDump()">
+        <input type="text" size="20" value="0x00000000" id="MemDumpStart">
+        <input type="button" value="Output Trace" id="OutputTraceButton" onclick="outputTrace()">
+        </td>
+    </tr>
+    <tr bgcolor="#FFFFFF"><td id="status" align="center" colspan="3" height="22px">Registers</td><td id="pc" align="right" colspan="1" height="22px" style="font-family: monospace; font-size: 14px;">[K]$pc: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x80000000</a>]</td></tr><tr bgcolor="#FFFFFF"><td id="reg0" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$0: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg1" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$1: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg2" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$2: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg3" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$3: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td></tr><tr bgcolor="#FFFFFF"><td id="reg4" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$4: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg5" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$5: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg6" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$6: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg7" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$7: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td></tr><tr bgcolor="#FFFFFF"><td id="reg8" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$8: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg9" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$9: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg10" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$10: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg11" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$11: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td></tr><tr bgcolor="#FFFFFF"><td id="reg12" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$12: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg13" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$13: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg14" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$14: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg15" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$15: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td></tr><tr bgcolor="#FFFFFF"><td id="reg16" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$16: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg17" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$17: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg18" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$18: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg19" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$19: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td></tr><tr bgcolor="#FFFFFF"><td id="reg20" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$20: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg21" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$21: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg22" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$22: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg23" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$23: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td></tr><tr bgcolor="#FFFFFF"><td id="reg24" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$24: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg25" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$25: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg26" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$26: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg27" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$27: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td></tr><tr bgcolor="#FFFFFF"><td id="reg28" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$gp: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg29" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$sp: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg30" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$fp: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td><td id="reg31" align="right" height="22px" width="25%" style="font-family: monospace; font-size: 14px;">$ra: [<a href="javascript: void(0);" class="register" onmouseover="regPopup(event);">0x00000000</a>]</td></tr><tr><td colspan="4"></td></tr><tr bgcolor="#FFFFFF"><td align="center" height="20px">Address</td><td align="center">Contents</td><td align="center" colspan="2">Instruction</td></tr><tr bgcolor="#FFFFFF"><td align="center" height="20px" style="font-family: monospace; font-size: 14px" id="addr0"></td><td align="left" style="font-family: monospace; font-size: 14px" id="cont0"></td><td align="left" colspan="2" style="font-family: monospace; font-size: 14px" id="inst0"></td></tr><tr bgcolor="#FFFFFF"><td align="center" height="20px" style="font-family: monospace; font-size: 14px" id="addr1"></td><td align="left" style="font-family: monospace; font-size: 14px" id="cont1"></td><td align="left" colspan="2" style="font-family: monospace; font-size: 14px" id="inst1"></td></tr><tr bgcolor="#FFFFFF"><td align="center" height="20px" style="font-family: monospace; font-size: 14px" id="addr2"></td><td align="left" style="font-family: monospace; font-size: 14px" id="cont2"></td><td align="left" colspan="2" style="font-family: monospace; font-size: 14px" id="inst2"></td></tr><tr bgcolor="#AAFFAA"><td align="center" height="20px" style="font-family: monospace; font-size: 14px" id="addr3">0x80000000</td><td align="left" style="font-family: monospace; font-size: 14px" id="cont3">0x20080048</td><td align="left" colspan="2" style="font-family: monospace; font-size: 14px" id="inst3">ADDI $t0, $zero, 72</td></tr><tr bgcolor="#FFFFFF"><td align="center" height="20px" style="font-family: monospace; font-size: 14px" id="addr4">0x80000004</td><td align="left" style="font-family: monospace; font-size: 14px" id="cont4">0x10000050</td><td align="left" colspan="2" style="font-family: monospace; font-size: 14px" id="inst4">beq $zero, $zero, mult2x8</td></tr><tr bgcolor="#FFFFFF"><td align="center" height="20px" style="font-family: monospace; font-size: 14px" id="addr5">0x80000008</td><td align="left" style="font-family: monospace; font-size: 14px" id="cont5">0x21080065</td><td align="left" colspan="2" style="font-family: monospace; font-size: 14px" id="inst5">ADDI $t0, $t0, 101</td></tr><tr bgcolor="#FFFFFF"><td align="center" height="20px" style="font-family: monospace; font-size: 14px" id="addr6">0x8000000C</td><td align="left" style="font-family: monospace; font-size: 14px" id="cont6">0x01084020</td><td align="left" colspan="2" style="font-family: monospace; font-size: 14px" id="inst6">ADD $t0, $t0, $t0</td></tr></tbody></table>
+    </form>
+    <br>
+</td></tr>
+<tr><td width="5%">&nbsp;</td>
+<td width="90%">
+<h2>1.0 UNC miniMIPS Processor Architecture</h2>
+<p>
+The UNC miniMIPS is a simple 32-bit processor with 32 registers, and a with main
+memory size of 2 gigabytes (2<sup style="font-size:x-small;">31</sup>),
+or 536,870,912 (2<sup style="font-size:x-small;">29</sup>) 32-bit words. It
+executes a subset of the MIPS R2000's instruction set. All native instructions
+occupy one 32-bit word in memory. Byte addresses of miniMIPs are in
+<em>big-endian</em> order.
+</p>
+<p>
+The 32 registers are specified as <em>$0-$31</em>. Each register holds a
+32-bit value, which can be interpreted a number, a character, or the address of
+some of a some variable or object in memory. Register, <em>$0</em>, is special.
+When used as a source operand, the contents of <em>$0</em> are always 0, and all
+updates of <em>$0</em>, when used as a destination, are ignored.
+</p>
+<p>
+Program execution begins at location 0x80000000 in kernel mode. However, the
+program must first be assembled (converted from its symbolic representation to a
+sequence of 32-bit words in memory) before it can be executed. If there are
+errors in the assembly process, a dialog box will pop up explaining the error.
+</p>
+<h2>2.0 Introduction to UNC miniMIPS Assembly Language</h2>
+<p>
+A typical line of assembly code specifies a single primitive operation, called
+an <em>instruction</em>, and its <em>operands</em>.
+The list of all UNC miniMIPs operations (its instruction set) is enumerated
+in section 3.
+In assembly language instructions are specified via short <em>mneumonics</em>
+of the operation specified (usually either abbreviations of acronymns).
+A list of comma-separated operands follows each instruction's mneumonic.
+The assembler uses this mneumonic and operand list to generate a
+binary encoding of the instruction, which is stored as a word in memory.
+Thus, an assembly language program is merely a way of generating a sequence
+of binary words, that the computer interprets as either (or both) program or data.
+To make this discussion concrete, consider the following example line of assembly
+code:
+</p>
+<table border="0" style="font-size: small;">
+    <tbody><tr>
+    <td width="100px"></td>
+    <td width="50px" align="left"><code>add</code></td>
+    <td width="150px" align="left"><code>$3,$4,$4</code></td>
+    <td width="300px" align="left">"<code>add</code>" is the instruction mneumonic</td>
+    </tr>
+    <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td align="left">"<code>$3,$4,$4</code>" is a list of 3 operands</td>
+    </tr>
+</tbody></table>
+<p>
+Generally, he first operand specifies the destination (output) of the operation,
+and subsequent operands specify source (input) operands.
+The instruction given tells the UNC miniMIPS to add the contents register 4 to
+itself and store the result in register 3.
+</p>
+<p>
+Empty lines are ignored by the assmebler (they generate no output to memory),
+but they are often used to enhance readability.
+Any text following a "#" is considered a comment and the remainder of the line
+is ignored by the assembler.
+Comments are used to document the intent of the code beyond what is evident from
+the instruction specification alone.
+</p>
+<p>
+Optionally, any line of assembly code can start with a <em>label</em>.
+A label is a sequence of characters followed by a colon (":"), which it is
+usually a meaningful name.
+A label provides a means for referencing the memory location that a particular
+instruction or variable is stored at. Instruction labels are often used to specify
+targets for branch instuctions. In the case of data, a label might represent
+a variable name.
+An example using label is shown below:
+</p>
+<table border="0" style="font-size: small;">
+    <tbody><tr>
+    <td width="50px"></td>
+    <td width="50px" align="left"><code>loop:</code></td>
+    <td width="50px" align="left"><code>addi</code></td>
+    <td width="150px" align="left"><code>$3,$3,-1</code></td>
+    <td width="300px" align="left"><code># loop is a label</code></td>
+    </tr>
+    <tr>
+    <td></td>
+    <td></td>
+    <td align="left"><code>bne</code></td>
+    <td align="left"><code>$0,$3,loop</code></td>
+    <td align="left"><code># here the label is referenced</code></td>
+    </tr>
+</tbody></table>
+<p>
+The UNC miniMIPS assembler also provides a small set of <em>assembler directives</em>,
+that are used like instructions.
+All assembler directives are prefixed with a "." (period) and they are
+generally used for allocating space for data and initializing variables.
+A complete list of assembler directives is given in section 4.
+Examples are given below.
+</p>
+<table border="0" style="font-size: small;">
+    <tbody><tr>
+    <td width="50px"></td>
+    <td width="50px" align="left"><code>Fib:</code></td>
+    <td width="50px" align="left"><code>.word</code></td>
+    <td width="150px" align="left"><code>1,1,2,3,5,8,13,21</code></td>
+    <td width="300px" align="left"><code># first 8 Fibonacci numbers</code></td>
+    </tr>
+    <tr>
+    <td></td>
+    <td><code>masks:</code></td>
+    <td><code>.word</code></td>
+    <td><code>0x000000ff,0x0000ff00,0x00ff0000,0xff000000</code></td>
+    <td><code># byte masks</code></td>
+    </tr>
+    <tr>
+    <td></td>
+    <td><code>Name:</code></td>
+    <td><code>.asciiz</code></td>
+    <td><code>"Leonard"</code></td>
+    <td><code># 0-terminated string (8 bytes)</code></td>
+    </tr>
+    <tr>
+    <td></td>
+    <td><code>array:</code></td>
+    <td><code>.space</code></td>
+    <td><code>20</code></td>
+    <td><code># 20 uninitialized words</code></td>
+    </tr>
+</tbody></table>
+<p>
+The UNC miniMIPS assembler also provides special support for simulation.
+Any line of assembly code beginning with an "*" (asterix) will
+act as a <em>breakpoint</em> causing the simulator to halt
+<em>prior</em> to the execution of the instruction following the mark, or
+<em>after</em> marked data is accessed via either a load or store instruction.
+One or more breakpoints can be set, and at least one is required to
+use the "Run" button.
+</p>
+
+<h2>3.0 UNC miniMIPS Instruction Set</h2>
+<dl>
+    <h3>Math Instructions</h3>
+    <dt><strong>ADD</strong>: add registers</dt>
+    <dd>
+    Syntax: <code class="assembly">add  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 0000</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s] + Reg[t]<br><br>
+    Add the contents of registers <em>Reg[s]</em> and <em>Reg[t]</em>, and place
+    the result in <em>Reg[d]</em>. If the result overflows an exception is generated.
+    </div>
+    <br>Example: <code class="example">add  $6,$2,$0   # Encoded as: 0x00403020</code><br>
+    </dd><br><br>
+    <dt><strong>ADDU</strong>: add registers without overflow</dt>
+    <dd>
+    Syntax: <code class="assembly">addu  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 0001</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s] + Reg[t]<br><br>
+    Add the contents of registers <em>Reg[s]</em> and <em>Reg[t]</em>, and place
+    the result in <em>Reg[d]</em>. Overflows are ignored.
+    </div>
+    <br>Example: <code class="example">addu  $3,$4,$4  # Encoded as: 0x00841821</code><br>
+    </dd><br><br>
+    <dt><strong>ADDI</strong>: add immediate</dt>
+    <dd>
+    Syntax: <code class="assembly">addi  $<em>t</em>,$<em>s</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0010 00<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[t] &#8592; Reg[s] + sign_extend(imm16)<br><br>
+    Add a 16-bit sign-extended constant to the contents of <em>Reg[s]</em>,
+    and place the result in <em>Reg[t]</em>. If the result overflows an exception
+    is generated.
+    </div>
+    <br>Example: <code class="example">addi  $6,$6,100    # Encoded as: 0x20c60064</code><br>
+    </dd><br><br>
+    <dt><strong>ADDIU</strong>: add immediate without overflow</dt>
+    <dd>
+    Syntax: <code class="assembly">addiu  $<em>t</em>,$<em>s</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0010 01<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[t] &#8592; Reg[s] + sign_extend(imm16)<br><br>
+    Add a 16-bit sign-extended constant to the contents of <em>Reg[s]</em>,
+    and place the result in <em>Reg[t]</em>. Overflows are ignored.
+    </div>
+    <br>Example: <code class="example">addiu  $10,$9,-1    # Encoded as: 0x252affff</code><br>
+    </dd><br><br>
+    <dt><strong>SUB</strong>: subtract registers</dt>
+    <dd>
+    Syntax: <code class="assembly">sub  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 0010</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s] - Reg[t]<br><br>
+    Subtract the contents of <em>Reg[t]</em> from <em>Reg[s]</em>, and place
+    the result in <em>Reg[d]</em>. If the result overflows an exception is
+    generated.
+    </div>
+    <br>Example:<code class="example">sub  $16,$0,$12    # Encoded as: 0x00c8022</code><br>
+    </dd><br><br>
+    <dt><strong>SUBU</strong>: subtract registers without overflow</dt>
+    <dd>
+    Syntax: <code class="assembly">subu  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 0011</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s] - Reg[t]<br><br>
+    Subtract the contents of <em>Reg[t]</em> from <em>Reg[s]</em>, and place
+    the result in <em>Reg[d]</em>. Overflows are ignored.
+    </div>
+    <br>Example:<code class="example">subu  $26,$24,$25    # Encoded as: 0x0319d023</code><br>
+    </dd><br><br>
+    <dt><strong>MUL</strong>: multiply registers</dt>
+    <dd>
+    Syntax: <code class="assembly">mul  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 001 1000</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s] * Reg[t]<br><br>
+    Multiply the contents of <em>Reg[s]</em> and <em>Regts]</em>, and place
+    the lower 32-bits of the product in <em>Reg[d]</em>. Overflows are ignored.
+    </div>
+    <br>Example:<code class="example">mul  $16,$2,$12    # Encoded as: 0x004c8018</code><br>
+    </dd><br><br>
+    <dt><strong>DIV</strong>: divide registers</dt>
+    <dd>
+    Syntax: <code class="assembly">div  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 001 1010</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s] / Reg[t]<br><br>
+    Divide the contents of <em>Reg[s]</em> by <em>Reg[t]</em>, and place
+    the quotient in <em>Reg[d]</em>. An overflow exception is generated and the
+    destination is unchanged if the divisor is 0.
+    </div>
+    <br>Example:<code class="example">div  $12,$16,$2    # Encoded as: 0x0202601a</code><br>
+    </dd><br><br>
+    <dt><strong>SLT</strong>: set if less than</dt>
+    <dd>
+    Syntax: <code class="assembly">slt  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 1010</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; 1 if (Reg[s] &lt; Reg[t]); 0 otherwise<br><br>
+    Set <em>Reg[d]</em> to '1' if the contents of <em>Reg[s]</em> is
+    less than the contents of <em>Reg[t]</em>.
+    </div>
+    <br>Example:<code class="example">slt  $17,$18,$19    # Encoded as: 0x0253882a</code><br>
+    </dd><br><br>
+    <dt><strong>SLTU</strong>: set if less than unsigned</dt>
+    <dd>
+    Syntax: <code class="assembly">sltu  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 1011</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; 1 if (Reg[s] &lt; Reg[t]); 0 otherwise<br><br>
+    Set <em>Reg[d]</em> to '1' if the contents of <em>Reg[s]</em> is less than
+    the contents of <em>Reg[t]</em>. Both operands (<em>Reg[s]</em> and <em>Reg[t]</em>)
+    are compared as unsigned integers.
+    </div>
+    <br>Example:<code class="example">sltu $20,$21,$22    # Encoded as: 0x02b6a02b</code><br>
+    </dd><br><br>
+    <dt><strong>SLTI</strong>: set if less than immediate</dt>
+    <dd>
+    Syntax: <code class="assembly">slti  $<em>t</em>,$<em>s</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0010 10<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[t] &#8592; 1 if (Reg[s] &lt; sign_extend(imm16)); 0 otherwise<br><br>
+    Set <em>Reg[d]</em> to '1' if the contents of <em>Reg[s]</em> is less than
+    the supplied sign extended immediate value.
+    </div>
+    <br>Example:<code class="example">slti  $6,$2,10    # Encoded as: 0x2846000a</code><br>
+    </dd><br><br>
+    <dd>
+    </dd><dt><strong>SLTIU</strong>: set if less than immediate unsigned</dt>
+    <dd>
+    Syntax: <code class="assembly">sltiu  $<em>t</em>,$<em>s</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0010 11<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[t] &#8592; 1 if (Reg[s] &lt; sign_extend(imm16)); 0 otherwise<br><br>
+    Set <em>Reg[d]</em> to '1' if the contents of <em>Reg[s]</em> is less than
+    the supplied sign-extended immediate value. Both arguments are treated as
+    unsigned integers (despite the sign extension... go figure?).
+    </div>
+    <br>Example:<code class="example">sltiu  $2,$6,0xffff    # Encoded as: 0x252affff</code><br>
+    </dd><br><br>
+    <h3>Logic Instructions</h3>
+    <dt><strong>AND</strong>: bitwise and registers</dt>
+    <dd>
+    Syntax: <code class="assembly">and  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 0100</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s] &amp; Reg[t]<br><br>
+    Performs a "bitwise" anding of the contents of registers <em>Reg[s]</em> and <em>Reg[t]</em>
+    and places the result in <em>Reg[d]</em>.
+    </div>
+    <br>Example: <code class="example">and  $6,$2,$3    # Encoded as: 0x00433024</code><br>
+    </dd><br><br>
+    <dt><strong>ANDI</strong>: bitwise and with immediate</dt>
+    <dd>
+    Syntax: <code class="assembly">andi  $<em>t</em>,$<em>s</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0011 00<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[t] &#8592; Reg[s] &amp; zero_extend(imm16)<br><br>
+    Performs a "bitwise" anding of the contents of <em>Reg[s]</em> with the
+    given zero-extended 16-bit constant and places the result in <em>Reg[t]</em>.
+    </div>
+    <br>Example: <code class="example">andi  $6,$2,255    # Encoded as: 0x304600ff</code><br>
+    </dd><br><br>
+    <dt><strong>OR</strong>: bitwise or registers</dt>
+    <dd>
+    Syntax: <code class="assembly">or  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 0101</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s] | Reg[t]<br><br>
+    Performs a "bitwise" oring of the contents of <em>Reg[s]</em> with <em>Reg[t]</em>,
+    and place the result in <em>Reg[d]</em>.
+    </div>
+    <br>Example:<code class="example">or  $4,$4,$5    # Encoded as: 0x00852025</code><br>
+    </dd><br><br>
+    <dt><strong>ORI</strong>: bitwise or with immediate</dt>
+    <dd>
+    Syntax: <code class="assembly">ori  $<em>t</em>,$<em>s</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0011 01<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[t] &#8592; Reg[s] | imm16<br><br>
+    Performs a "bitwise" oring of the contents of <em>Reg[s]</em> with
+    the given zero-extended 16-bit constant and place the result in <em>Reg[t]</em>.
+    </div>
+    <br>Example:<code class="example">ori  $12,$1,0xabcd    # Encoded as: 0x342cabcd</code><br>
+    </dd><br><br>
+    <dt><strong>XOR</strong>: bitwise exclusive or registers</dt>
+    <dd>
+    Syntax: <code class="assembly">xor  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 0110</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s] ^ Reg[t]<br><br>
+    Perform a "bitwise" exclusive-or of the contents of <em>Reg[s]</em> with <em>Reg[t]</em>),
+    and place the result in <em>Reg[d]</em>.
+    </div>
+    <br>Example:<code class="example">xor  $6,$9,$1    # Encoded as: 0x012113026</code><br>
+    </dd><br><br>
+    <dt><strong>XORI</strong>: bitwise exclusive-or with immediate</dt>
+    <dd>
+    Syntax: <code class="assembly">xori  $<em>t</em>,$<em>s</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0011 10<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[t] &#8592; Reg[s] ^ imm16<br><br>
+    Performs a "bitwise" exclusive-oring of the contents of <em>Reg[s]</em> with
+    the zero-extended 16-bit constant and places the result in <em>Reg[t]</em>.
+    </div>
+    <br>Example:<code class="example">xori  $6,$2,0xffff    # Encoded as: 0x3846ffff</code><br>
+    </dd><br><br>
+    <dt><strong>NOR</strong>: bitwise nor registers</dt>
+    <dd>
+    Syntax: <code class="assembly">nor  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0010 0111</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; ~(Reg[s] | Reg[t])<br><br>
+    Perform a "bitwise" nor of the contents of <em>Reg[s]</em> with <em>Reg[t]</em>),
+    and place the result in <em>Reg[d]</em>. This instruction is commonly to complement
+    the contents of a register by setting the other operand to $0.
+    </div>
+    <br>Example:<code class="example">nor  $1,$1,$0    # Encoded as: 0x00200827</code><br>
+    </dd><br><br>
+    <h3>Shift Instructions</h3>
+    <dt><strong>LUI</strong>: load upper immediate while filling lower bits with zeros</dt>
+    <dd>
+    Syntax: <code class="assembly">lui  $<em>t</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0011 1100 000<em>t tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[t] &#8592; imm16 &lt;&lt; 16<br><br>
+    Load <em>Reg[t]</em> with the given 16-bit constant shifted left by 16 bits.
+    Vacated bits are filled with 0's. This instruction is frequently followed
+    by an <code>ori  $t,$0,imm16</code> to initialize a register with a 32-bit
+    constant. If a label is specified the upper 16 bits of the associated address
+    are used as the constant.
+    </div>
+    <br>Example: <code class="example">lui  $1,0xaaaa    # Encoded as: 0x3c01aaaa</code>
+    </dd><br><br>
+    <dt><strong>SLL</strong>: shift left logical by filling lower bits with zeros</dt>
+    <dd>
+    Syntax: <code class="assembly">sll  $<em>d</em>,$<em>t</em>,<em>imm5</em></code><br>
+    Encoding: <code class="machine">0000 0000 000<em>t tttt dddd diii ii</em>00 0000</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[t] &lt;&lt; imm5<br><br>
+    Shift the contents of <em>Reg[t]</em> left the number of positions specified
+    by the given unsigned constant (0-31) and place the result in
+    <em>Reg[d]</em>. Vacated bits are filled with 0's. This instruction is
+    frequently used to multiply by powers of 2. It also serves as the default
+    <em>NOP</em> (No OPeration) instruction, which is equivalent to
+    <code>sll  $0,$0,$0</code> and is encoded as <code>0x00000000</code>.
+    </div>
+    <br>Example: <code class="example">sll  $6,$2,2    # Encoded as: 0x00023080</code>
+    </dd><br><br>
+    <dt><strong>SLLV</strong>: shift left logical variable; zero-fill lower bits</dt>
+    <dd>
+    Syntax: <code class="assembly">sllv  $<em>d</em>,$<em>t</em>,<em>$s</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0000 0100</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[t] &lt;&lt; Reg[s]<br><br>
+    Shift the contents of <em>Reg[t]</em> left the number of positions specified
+    by the specified by lower 5-bits of <em>Reg[s]</em> and place the result in
+    <em>Reg[d]</em>. Vacated bits are filled with 0's. This instruction is
+    frequently used to multiply by powers of 2.
+    </div>
+    <br>Example:<code class="example">sllv  $6,$2,$2    # Encoded as: 0x00423004</code><br>
+    </dd><br><br>
+    <dt><strong>SRL</strong>: shift right logical filling upper bits with zeros</dt>
+    <dd>
+    Syntax: <code class="assembly">srl  $<em>d</em>,$<em>t</em>,<em>imm5</em></code><br>
+    Encoding: <code class="machine">0000 0000 000<em>t tttt dddd diii ii</em>00 0010</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[t] &gt;&gt;&gt; imm4<br><br>
+    Shift the contents of <em>Reg[t]</em> right the number of positions
+    specified by the given unsigned constant (0-31). Vacated register
+    bits are filled with 0's. This instruction can be used to perform unsigned
+    integer divides by a power of 2.
+    </div>
+    <br>Example:<code class="example">srl  $1,$1,8    # Encoded as: 0x00010a02</code><br>
+    </dd><br><br>
+    <dt><strong>SRLV</strong>: shift right logical variable; zero-fill upper bits</dt>
+    <dd>
+    Syntax: <code class="assembly">srlv  $<em>d</em>,$<em>t</em>,<em>$s</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0000 0110</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[t] &gt;&gt;&gt; Reg[s]<br><br>
+    Shift the contents of <em>Reg[t]</em> right the number of positions specified
+    by the lower 5-bits of <em>Reg[s]</em> and place the result in <em>Reg[d]</em>.
+    Vacated bits are filled with 0's. This instruction is frequently used to
+    divide unsigned integers by powers of 2.
+    </div>
+    <br>Example:<code class="example">srlv  $6,$8,$24    # Encoded as: 0x01183006</code><br>
+    </dd><br><br>
+    <dt><strong>SRA</strong>: shift right arithmetic filling upper-bits with the sign</dt>
+    <dd>
+    Syntax: <code class="assembly">sra  $<em>d</em>,$<em>t</em>,<em>imm5</em></code><br>
+    Encoding: <code class="machine">0000 0000 000<em>t tttt dddd diii ii</em>00 0011</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[t] &gt;&gt; imm5<br><br>
+    Shift the contents of <em>Reg[t]</em> right the number of positions
+    specified by the given unsigned constant (0-31). Vacated register
+    bits are filled with copies of the sign bit. An alternate intepretation of
+    is:<br><br>
+    Reg[d] &#8592; Reg[t] / 2<sup>imm5</sup><br><br>
+    Where the contents of <em>Reg[t]</em> are treated as a signed integer.
+    </div>
+    <br>Example:<code class="example">sra  $1,$1,31    # Encoded as: 0x00010fc3</code><br>
+    </dd><br><br>
+    <dt><strong>SRAV</strong>: shift right variable filling upper-bits with the sign</dt>
+    <dd>
+    Syntax: <code class="assembly">srav  $<em>d</em>,$<em>t</em>,$<em>s</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss ssst tttt dddd d</em>000 0000 0111</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[t] &gt;&gt; <sup>Reg[s]</sup><br><br>
+    Shift the contents of <em>Reg[t]</em> right the number of positions specified
+    by the lower 5-bits of <em>Reg[s]</em>. The vacated register bits are filled
+    with copies of the sign bit.
+    </div>
+    <br>Example:<code class="example">srav  $1,$1,$2    # Encoded as: 0x00220807</code><br>
+    </dd><br><br>
+    <h3>Memory Access Instructions</h3>
+    <dt><strong>SW</strong>: store word</dt>
+    <dd>
+    Syntax: <code class="assembly">sw  $<em>t</em>,imm16($<em>s)</em></code><br>
+            <code class="variant">sw  $<em>t</em>,imm16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# implicit $s = $0</code><br>
+            <code class="variant">sw  $<em>t</em>,($s)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# implicit $imm16 = 0</code><br>
+    Encoding: <code class="machine">1010 11<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Memory[Reg[s]+sign_extended(imm16)] &#8592; Reg[t]<br><br>
+    Save the contents of <em>Reg[d]</em> into the memory address given by the
+    contents of <em>Reg[s]</em> plus a sign-extended 16-bit constant. If the
+    computed memory address is not word aligned an exception is generated.
+    </div>
+    <br>Example:<code class="example">sw  $1,-4($29)    # Encoded as: 	0xafa1fffc</code><br>
+    </dd><br><br>
+    <dt><strong>LW</strong>: load word</dt>
+    <dd>
+    Syntax: <code class="assembly">lw  $<em>t</em>,imm16($<em>s)</em></code><br>
+            <code class="variant">lw  $<em>t</em>,imm16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# implicit $s = $0</code><br>
+            <code class="variant">lw  $<em>t</em>,($s)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# implicit $imm16 = 0</code><br>
+    Encoding: <code class="machine">1000 11<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[t] &#8592; Memory[Reg[s]+sign_extended(imm16)]<br><br>
+    Load <em>Reg[d]</em> with the contents of memory at the address given by the
+    contents of <em>Reg[s]</em> plus a sign-extended 16-bit constant. If the
+    computed memory address is not word aligned an exception is generated.
+    </div>
+    <br>Example:<code class="example">lw  $1,8($29)    # Encoded as: 	0x8fa10008</code><br>
+    </dd><br><br>
+    <h3>Branch and Jump Instructions</h3>
+    <dt><strong>BEQ</strong>: branch if equal</dt>
+    <dd>
+    Syntax: <code class="assembly">beq  $<em>s</em>,$<em>t</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0001 00<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    if (Reg[s] == Reg[t]) {<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;PC &#8592; PC + 4*sign_extended(imm16) + 4<br>
+    }
+    <br><br>
+    If the contents of <em>Reg[s]</em> equals the contents of <em>Reg[t]</em>
+    branch to the instruction given by the specified constant, which is usually
+    specified by a label.
+    </div>
+    <br>Example:<code class="example">halt: beq  $0,$0,halt    # Encoded as: 0x1000ffff</code><br>
+    </dd><br><br>
+    <dt><strong>BNE</strong>: branch if not equal</dt>
+    <dd>
+    Syntax: <code class="assembly">bne  $<em>s</em>,$<em>t</em>,<em>imm16</em></code><br>
+    Encoding: <code class="machine">0001 01<em>ss ssst tttt iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    if (Reg[s] &#8800; Reg[t]) {<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;PC &#8592; PC + 4*sign_extended(imm16)<br>
+    }
+    <br><br>
+    If the contents of <em>Reg[s]</em> does not equal the contents of
+    <em>Reg[t]</em> branch to the instruction given by the specified constant,
+    which is usually specified by a label.
+    </div>
+    <br>Example:<code class="example">bne  $1,$0,skip    # Encoded as: 0x14200000</code><br>
+    <code class="example">&nbsp;&nbsp;skip:</code><br>
+    </dd><br><br>
+    <dt><strong>JR</strong>: jump register</dt>
+    <dd>
+    Syntax: <code class="assembly">jr  $<em>s</em></code><br>
+    Encoding: <code class="machine">0000 00<em>ss sss</em>0 0000 0000 0000 0000 1000</code><br>
+    Description:<div class="description">
+    PC &#8592; Reg[s]<br>
+    <br>
+    Jump to the instruction given by the contents of <em>Reg[s]</em>.
+    </div>
+    <br>Example:<code class="example">jr  $31    # Encoded as: 0x03e00008</code><br>
+    </dd><br><br>
+    <dt><strong>JALR</strong>: jump and link register</dt>
+    <dd>
+    Syntax: <code class="assembly">jalr  $<em>s</em>,$<em>d</em></code><br>
+           <code class="variant">jalr  $<em>s</em>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# implicit $d = $31</code><br>
+    Encoding: <code class="machine">0000 00<em>ss sss</em>0 0000 dddd d000 0000 1001</code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; PC + 4<br>
+    PC &#8592; Reg[s]<br>
+    <br>
+    Jump to the instruction given by the contents of <em>Reg[s]</em>, and save
+    the location of the next instruction in <em>Reg[s]</em>.
+    </div>
+    <br>Example:<code class="example">jalr  $1,$31    # Encoded as: 0x0020F809</code><br>
+    </dd><br><br>
+    <dt><strong>J</strong>: jump</dt>
+    <dd>
+    Syntax: <code class="assembly">j <em>imm26</em></code><br>
+    Encoding: <code class="machine">0000 10<em>ii iiii iiii iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    PC &#8592; (PC &amp; 0xf0000000) | (4*imm26)<br>
+    <br>
+    Jump to the instruction given by 4 times the immediate 26-bit constant, which
+    is usually references a label.
+    </div>
+    <br>Example:<code class="example">j 0x00400000   # Encoded as: 0x08100000</code><br>
+    </dd><br><br>
+    <dt><strong>JAL</strong>: jump and link</dt>
+    <dd>
+    Syntax: <code class="assembly">jal <em>imm26</em></code><br>
+    Encoding: <code class="machine">0000 11<em>ii iiii iiii iiii iiii iiii iiii</em></code><br>
+    Description:<div class="description">
+    Reg[31] &#8592; PC + 4<br>
+    PC &#8592; (PC &amp; 0xf0000000) | (4*imm26)<br>
+    <br>
+    Jump to the instruction given by 4 times the immediate 26-bit constant, which
+    is usually references a label, and save the location of the next instruction
+    in <em>Reg[31]</em>.
+    </div>
+    <br>Example:<code class="example">jal main   # Encoded as: 0x0c100000</code><br>
+    </dd><br><br>
+</dl>
+<h2>4.0 Pseudoinstructions</h2>
+<dl>
+    <dt><strong>NEG</strong>: negate register</dt>
+    <dd>
+    Syntax: <code class="assembly">neg  $<em>d</em>,$<em>s</em></code><br>
+    Encoding: <code class="machine"><em>pseudoinstruction</em></code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; -Reg[s]<br><br>
+    Negates the contents of register <em>Reg[s]</em> and places the result in <em>Reg[d]</em>.
+    Generates an overflow if the sign of the result is the same as the original contents of the source register.
+    </div>
+    <br>Example: <code class="example">neg  $6,$2</code><br>
+    </dd><br><br>
+    <dt><strong>NEGU</strong>: negate register and ingore overflows.</dt>
+    <dd>
+    Syntax: <code class="assembly">negu  $<em>d</em>,$<em>s</em></code><br>
+    Encoding: <code class="machine"><em>pseudoinstruction</em></code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; -Reg[s]<br><br>
+    Negates the contents of register <em>Reg[s]</em> and places the result in <em>Reg[d]</em>. Overflows are ignored.
+    </div>
+    <br>Example: <code class="example">negu  $6,$2</code><br>
+    </dd><br><br>
+    <dt><strong>NOT</strong>: bitwise complement</dt>
+    <dd>
+    Syntax: <code class="assembly">not  $<em>d</em>,$<em>s</em></code><br>
+    Encoding: <code class="machine"><em>pseudoinstruction</em></code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; ~Reg[s]<br><br>
+    Performs a "bitwise" complement of the contents of <em>Reg[s]</em> and places the result in <em>Reg[d]</em>.
+    Each '0' is replaced by a '1', and each '1' with a '0';
+    </div>
+    <br>Example:<code class="example">not  $4,$4</code><br>
+    </dd><br><br>
+    <dt><strong>MOVE</strong>: copy a register's contents of</dt>
+    <dd>
+    Syntax: <code class="assembly">move  $<em>d</em>,$<em>s</em></code><br>
+    Encoding: <code class="machine"><em>pseudoinstruction</em></code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s]<br><br>
+    Copies the contents of <em>Reg[s]</em> to <em>Reg[d]</em>.
+    </div>
+    <br>Example:<code class="example">move  $1,$4</code><br>
+    </dd><br><br>
+    <dt><strong>LA</strong>: load address</dt>
+    <dd>
+    Syntax: <code class="assembly">la  $<em>d</em>,imm16($<em>s)</em></code><br>
+            <code class="variant">la  $<em>d</em>,imm16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# implicit $s = $0</code><br>
+            <code class="variant">la  $<em>d</em>,($s)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# implicit $imm16 = 0</code><br>
+    Encoding: <code class="machine"><em>pseudoinstruction</em></code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; Reg[s]+sign_extended(imm16)<br><br>
+    Load <em>Reg[d]</em> with the address given by the adding the contents of
+    <em>Reg[s]</em> to a sign-extended 16-bit constant. <em>Using $1 as an
+    operand may give unexpected results</em>.
+    </div>
+    <br>Example:<code class="example">la  $1,8($29)</code><br>
+    </dd><br><br>
+    <dt><strong>SGT</strong>: set if greater than</dt>
+    <dd>
+    Syntax: <code class="assembly">sgt  $<em>d</em>,$<em>s</em>,$<em>t</em></code><br>
+    Encoding: <code class="machine"><em>pseudoinstruction</em></code><br>
+    Description:<div class="description">
+    Reg[d] &#8592; 1 if (Reg[s] &gt; Reg[t]); 0 otherwise<br><br>
+    Set <em>Reg[d]</em> to '1' if the contents of <em>Reg[s]</em> is
+    greater than the contents of <em>Reg[t]</em>.
+    </div>
+    <br>Example:<code class="example">sgt  $17,$18,$19</code><br>
+    </dd><br><br>
+    <dt><strong>B</strong>: unconditional branch</dt>
+    <dd>
+    Syntax: <code class="assembly">b <em>imm16</em></code><br>
+    Encoding: <code class="machine"><em>pseudoinstruction</em></code><br>
+    Description:<div class="description">
+    PC &#8592; PC + 4*sign_extended(imm16)<br><br>
+    Branch to the instruction given by the specified constant, which is usually
+    specified by a label.
+    </div>
+    <br>Example:<code class="example">halt: b halt</code><br>
+    </dd><br><br>
+</dl>
+<h2>5.0 Assembler Directives</h2>
+<dl>
+    <dt><strong>.WORD</strong>: Specify initialized data</dt>
+    <dd>
+    Syntax: <code class="assembly">.word  <em>value<sub>1</sub></em>,
+    <em>value<sub>2</sub></em>, ..., <em>value<sub>n</sub></em></code><br>
+    Description:<div class="description">
+    Successive words in memory are initialized with constant values from the list.
+    Constants can be decimal numbers, octal numbers prefixed with '0',
+    hexadecimal numbers prefixed with '0x', or labels, which specify an address.
+    </div>
+    <br>Example:<code class="example">
+    .word  10,010,0x10    # Encoded as: 0x0000000a, 0x00000008, 0x00000010</code><br>
+    </dd><br><br>
+    <dt><strong>.SPACE</strong>: Specify a block of uninitialized space</dt>
+    <dd>
+    Syntax: <code class="assembly">
+    .space  <em>value<sub>1</sub></em>,<em>value<sub>2</sub></em>, ..., <em>value<sub>n</sub></em></code><br>
+    Description:<div class="description">
+    Blocks of sizes specified in the list of constant values are reserved.
+    Constants can be decimal numbers, octal numbers prefixed with '0',
+    hexadecimal numbers prefixed with '0x', or an address label.
+    </div>
+    <br>Example:<code class="example">
+    .space 50    # reserves 50 uninitialized words</code><br>
+    </dd><br><br>
+    <dt><strong>.ASCIIZ</strong>: Initialize memory with strings</dt>
+    <dd>
+    Syntax: <code class="assembly">
+    .asciiz  "<em>string<sub>1</sub></em>","<em>string<sub>2</sub></em>", ..., "<em>string<sub>n</sub></em>"</code><br>
+    Description:<div class="description">
+    Fills successive memory locations with characters from the given list of
+    quoted strings, each string is termnated with one or more "0"s. The address
+    of the first letter of each string is word aligned.
+    </div>
+    <br>Example:<code class="example">
+    .asciiz  "Tarheels"   # Encoded as: 0x54617268, 0x65656C73, 0x00000000</code><br>
+    </dd>
+</dl>
+</td>
+<td width="5%">&nbsp;</td></tr>
+<tr><td colspan="3" align="right"><hr>
+<a href="http://www.csbio.unc.edu/mcmillan/index.py?run=Courses.Comp411F15">Back to course web page</a>
+</td></tr></tbody></table>
+<br><br>
+<div align="center" style="font-family: sans-serif;">� 2012, 2013, 2015 Leonard McMillan</div>
+<br><br>
+
+<div id="regPopup" style="display: none; position: absolute; padding: 5px; background: rgb(255, 255, 204); font-family: monospace; font-size: 80%; border: 1px solid black; z-index: 200000; top: 765px; left: 722px;">&nbsp;&nbsp;&nbsp;register: pc<br>hexadecimal: 0x80000000<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;signed: -2147483648<br>&nbsp;&nbsp;&nbsp;unsigned: 2147483648</div></body></html>
