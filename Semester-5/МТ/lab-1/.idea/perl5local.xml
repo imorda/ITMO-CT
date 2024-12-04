@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Perl5LocalSettings">
+    <option name="perlInterpreter" value="Wsl[ubuntu], System: Perl 5.30.0" />
+  </component>
+  <component name="Perl5XSubsState">
+    <option name="myFilesMap">
+      <map>
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/Cwd/Cwd.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/Fcntl/Fcntl.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/File/Glob/Glob.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/Hash/Util/Util.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/IO/IO.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/List/Util/Util.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/POSIX/POSIX.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/Socket/Socket.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/attributes/attributes.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl-base/auto/re/re.so" value="1684862268000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/Algorithm/Diff/XS/XS.so" value="1572193809000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/File/FcntlLock/FcntlLock.so" value="1571427080000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/HTML/Parser/Parser.so" value="1582057709000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/Locale/gettext/gettext.so" value="1572188652000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/Net/DBus/DBus.so" value="1577374631000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/Net/SSLeay/SSLeay.so" value="1579090039000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/Text/CharWidth/CharWidth.so" value="1572193353000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/Text/Iconv/Iconv.so" value="1572189985000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/XML/LibXML/LibXML.so" value="1571427405000" />
+        <entry key="//wsl$/Ubuntu/usr/lib/x86_64-linux-gnu/perl5/5.30/auto/XML/Parser/Expat/Expat.so" value="1570124899000" />
+      </map>
+    </option>
+  </component>
+</project>
