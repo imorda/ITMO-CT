@@ -49,3 +49,171 @@
 [submodule "Semester-4/МетОпт/meth_opt_lab3"]
 	path = Semester-4/МетОпт/meth_opt_lab3
 	url = https://github.com/chanyshv/meth_opt_lab3.git
+[submodule "Semester-5/FP/homework-0"]
+	path = Semester-5/FP/homework-0
+	url = git@github.com:imorda/homework-0.git
+[submodule "Semester-5/FP/homework-1"]
+	path = Semester-5/FP/homework-1
+	url = git@github.com:imorda/homework-1.git
+[submodule "Semester-5/FP/homework-2"]
+	path = Semester-5/FP/homework-2
+	url = git@github.com:imorda/homework-2.git
+[submodule "Semester-5/FP/homework-3"]
+	path = Semester-5/FP/homework-3
+	url = git@github.com:imorda/homework-3.git
+[submodule "Semester-5/FP/homework-4"]
+	path = Semester-5/FP/homework-4
+	url = git@github.com:imorda/homework-4.git
+[submodule "Semester-5/FP/homework-5"]
+	path = Semester-5/FP/homework-5
+	url = git@github.com:imorda/homework-5.git
+[submodule "Semester-5/FP/homework-6"]
+	path = Semester-5/FP/homework-6
+	url = git@github.com:imorda/homework-6.git
+[submodule "Semester-5/Kotlin/1-syntax-intro"]
+	path = Semester-5/Kotlin/1-syntax-intro
+	url = git@github.com:imorda/1-syntax-intro.git
+[submodule "Semester-5/Kotlin/2-syntax-classes"]
+	path = Semester-5/Kotlin/2-syntax-classes
+	url = git@github.com:imorda/2-syntax-classes.git
+[submodule "Semester-5/Kotlin/3-functions-extentions"]
+	path = Semester-5/Kotlin/3-functions-extentions
+	url = git@github.com:imorda/3-functions-extentions.git
+[submodule "Semester-5/Kotlin/4-chat-bot-ds"]
+	path = Semester-5/Kotlin/4-chat-bot-ds
+	url = git@github.com:imorda/4-chat-bot-ds.git
+[submodule "Semester-5/Kotlin/5-coroutines-basic"]
+	path = Semester-5/Kotlin/5-coroutines-basic
+	url = git@github.com:imorda/5-coroutines-basic.git
+[submodule "Semester-5/Kotlin/6-airline"]
+	path = Semester-5/Kotlin/6-airline
+	url = git@github.com:imorda/6-airline.git
+[submodule "Semester-5/Kotlin/7-multiplatform-client"]
+	path = Semester-5/Kotlin/7-multiplatform-client
+	url = git@github.com:imorda/7-multiplatform-client.git
+[submodule "Semester-5/Kotlin/a-gradle-project"]
+	path = Semester-5/Kotlin/a-gradle-project
+	url = git@github.com:imorda/a-gradle-project.git
+[submodule "Semester-5/АнДан/kaggle-link-prediction-imorda"]
+	path = Semester-5/АнДан/kaggle-link-prediction-imorda
+	url = git@github.com:imorda/kaggle-link-prediction-imorda.git
+[submodule "Semester-5/АнДан/parser-imorda"]
+	path = Semester-5/АнДан/parser-imorda
+	url = git@github.com:imorda/parser-imorda.git
+[submodule "Semester-5/АнДан/supervised-imorda"]
+	path = Semester-5/АнДан/supervised-imorda
+	url = git@github.com:imorda/supervised-imorda.git
+[submodule "Semester-5/АнДан/text-imorda"]
+	path = Semester-5/АнДан/text-imorda
+	url = git@github.com:imorda/text-imorda.git
+[submodule "Semester-5/АнДан/timeseries-imorda"]
+	path = Semester-5/АнДан/timeseries-imorda
+	url = git@github.com:imorda/timeseries-imorda.git
+[submodule "Semester-5/МТ/lab-3"]
+	path = Semester-5/МТ/lab-3
+	url = git@github.com:imorda/lab-3.git
+[submodule "Semester-5/МТ/lab-4"]
+	path = Semester-5/МТ/lab-4
+	url = git@github.com:imorda/lab-4.git
+[submodule "Semester-5/ПарПрог/casn-imorda"]
+	path = Semester-5/ПарПрог/casn-imorda
+	url = git@github.com:imorda/casn-imorda.git
+[submodule "Semester-5/ПарПрог/dijkstra"]
+	path = Semester-5/ПарПрог/dijkstra
+	url = git@github.com:imorda/dijkstra.git
+[submodule "Semester-5/ПарПрог/dynamic-array"]
+	path = Semester-5/ПарПрог/dynamic-array
+	url = git@github.com:imorda/dynamic-array.git
+[submodule "Semester-5/ПарПрог/faa-queue"]
+	path = Semester-5/ПарПрог/faa-queue
+	url = git@github.com:imorda/faa-queue.git
+[submodule "Semester-5/ПарПрог/fc-queue"]
+	path = Semester-5/ПарПрог/fc-queue
+	url = git@github.com:imorda/fc-queue.git
+[submodule "Semester-5/ПарПрог/fine-grained-bank"]
+	path = Semester-5/ПарПрог/fine-grained-bank
+	url = git@github.com:imorda/fine-grained-bank.git
+[submodule "Semester-5/ПарПрог/hash-table"]
+	path = Semester-5/ПарПрог/hash-table
+	url = git@github.com:imorda/hash-table.git
+[submodule "Semester-5/ПарПрог/lamport-lock-fail"]
+	path = Semester-5/ПарПрог/lamport-lock-fail
+	url = git@github.com:imorda/lamport-lock-fail.git
+[submodule "Semester-5/ПарПрог/lock-free-bank"]
+	path = Semester-5/ПарПрог/lock-free-bank
+	url = git@github.com:imorda/lock-free-bank.git
+[submodule "Semester-5/ПарПрог/mcs-lock"]
+	path = Semester-5/ПарПрог/mcs-lock
+	url = git@github.com:imorda/mcs-lock.git
+[submodule "Semester-5/ПарПрог/monotonic-clock"]
+	path = Semester-5/ПарПрог/monotonic-clock
+	url = git@github.com:imorda/monotonic-clock.git
+[submodule "Semester-5/ПарПрог/msqueue"]
+	path = Semester-5/ПарПрог/msqueue
+	url = git@github.com:imorda/msqueue.git
+[submodule "Semester-5/ПарПрог/possible-executions-analysis-imorda"]
+	path = Semester-5/ПарПрог/possible-executions-analysis-imorda
+	url = git@github.com:imorda/possible-executions-analysis-imorda.git
+[submodule "Semester-5/ПарПрог/removals-from-the-middle"]
+	path = Semester-5/ПарПрог/removals-from-the-middle
+	url = git@github.com:imorda/removals-from-the-middle.git
+[submodule "Semester-5/ПарПрог/stack-elimination"]
+	path = Semester-5/ПарПрог/stack-elimination
+	url = git@github.com:imorda/stack-elimination.git
+[submodule "Semester-5/ПарПрог/stm-bank"]
+	path = Semester-5/ПарПрог/stm-bank
+	url = git@github.com:imorda/stm-bank.git
+[submodule "Semester-6/Go/2024-spring-go-course-lesson1"]
+	path = Semester-6/Go/2024-spring-go-course-lesson1
+	url = git@github.com:imorda/Go-2024-spring-go-course-lesson1.git
+[submodule "Semester-6/Go/2024-spring-go-course-lesson11"]
+	path = Semester-6/Go/2024-spring-go-course-lesson11
+	url = git@github.com:imorda/Go-2024-spring-go-course-lesson11.git
+[submodule "Semester-6/Go/2024-spring-go-course-lesson2"]
+	path = Semester-6/Go/2024-spring-go-course-lesson2
+	url = git@github.com:imorda/Go-2024-spring-go-course-lesson2.git
+[submodule "Semester-6/Go/2024-spring-go-course-lesson3"]
+	path = Semester-6/Go/2024-spring-go-course-lesson3
+	url = git@github.com:imorda/Go-2024-spring-go-course-lesson3.git
+[submodule "Semester-6/Go/2024-spring-go-course-lesson4"]
+	path = Semester-6/Go/2024-spring-go-course-lesson4
+	url = git@github.com:imorda/Go-2024-spring-go-course-lesson4.git
+[submodule "Semester-6/Go/2024-spring-go-course-lesson5"]
+	path = Semester-6/Go/2024-spring-go-course-lesson5
+	url = git@github.com:imorda/Go-2024-spring-go-course-lesson5.git
+[submodule "Semester-6/Go/2024-spring-go-course-lesson7"]
+	path = Semester-6/Go/2024-spring-go-course-lesson7
+	url = git@github.com:imorda/Go-2024-spring-go-course-lesson7.git
+[submodule "Semester-6/Go/project-iot"]
+	path = Semester-6/Go/project-iot
+	url = git@github.com:imorda/Go-project-iot.git
+[submodule "Semester-6/ML/lab1-knn-imorda"]
+	path = Semester-6/ML/lab1-knn-imorda
+	url = git@github.com:imorda/ML-lab1-knn-imorda.git
+[submodule "Semester-6/ML/lab2-linear"]
+	path = Semester-6/ML/lab2-linear
+	url = git@github.com:imorda/ML-lab2-linear.git
+[submodule "Semester-6/ML/lab3-decision-tree-imorda"]
+	path = Semester-6/ML/lab3-decision-tree-imorda
+	url = git@github.com:imorda/ML-lab3-decision-tree-imorda.git
+[submodule "Semester-6/ML/lab4-dl"]
+	path = Semester-6/ML/lab4-dl
+	url = git@github.com:imorda/ML-lab4-dl.git
+[submodule "Semester-6/ML/lab5-fe"]
+	path = Semester-6/ML/lab5-fe
+	url = git@github.com:imorda/ML-lab5-fe.git
+[submodule "Semester-6/PDS/distributed-consensus-error"]
+	path = Semester-6/PDS/distributed-consensus-error
+	url = git@github.com:imorda/PDS-distributed-consensus-error.git
+[submodule "Semester-6/PDS/distributed-dijkstra"]
+	path = Semester-6/PDS/distributed-dijkstra
+	url = git@github.com:imorda/PDS-distributed-dijkstra.git
+[submodule "Semester-6/PDS/distributed-fifo"]
+	path = Semester-6/PDS/distributed-fifo
+	url = git@github.com:imorda/PDS-distributed-fifo.git
+[submodule "Semester-6/PDS/distributed-mutex"]
+	path = Semester-6/PDS/distributed-mutex
+	url = git@github.com:imorda/PDS-distributed-mutex.git
+[submodule "Semester-6/PDS/distributed-raft"]
+	path = Semester-6/PDS/distributed-raft
+	url = git@github.com:imorda/PDS-distributed-raft.git
